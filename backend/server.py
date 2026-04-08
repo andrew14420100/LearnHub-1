@@ -1,13 +1,12 @@
 from fastapi import FastAPI, APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional, List
-import os, uuid, hashlib, hmac, base64, json, math, random, logging, time, shutil, aiofiles
+import os, uuid, hashlib, hmac, base64, json, math, random, logging, time, shutil, aiofiles, mimetypes
 from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).parent
@@ -27,8 +26,6 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 (UPLOAD_DIR / 'pdfs').mkdir(exist_ok=True)
 (UPLOAD_DIR / 'certificates').mkdir(exist_ok=True)
 
-app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -41,6 +38,67 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'learnhub-jwt-secret-2025')
+
+# ==================== FILE STREAMING ENDPOINT ====================
+@app.get("/api/uploads/{subdir}/{filename}")
+async def serve_uploaded_file(subdir: str, filename: str, request: Request):
+    file_path = UPLOAD_DIR / subdir / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(404, "File non trovato")
+    
+    file_size = file_path.stat().st_size
+    content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+    
+    range_header = request.headers.get("range")
+    if range_header:
+        range_str = range_header.replace("bytes=", "")
+        parts = range_str.split("-")
+        start = int(parts[0])
+        end = int(parts[1]) if parts[1] else file_size - 1
+        end = min(end, file_size - 1)
+        chunk_size = end - start + 1
+        
+        async def stream_range():
+            async with aiofiles.open(str(file_path), 'rb') as f:
+                await f.seek(start)
+                remaining = chunk_size
+                while remaining > 0:
+                    read_size = min(remaining, 65536)
+                    data = await f.read(read_size)
+                    if not data:
+                        break
+                    remaining -= len(data)
+                    yield data
+        
+        return StreamingResponse(
+            stream_range(),
+            status_code=206,
+            media_type=content_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(chunk_size),
+                "Cache-Control": "public, max-age=3600",
+            }
+        )
+    
+    async def stream_file():
+        async with aiofiles.open(str(file_path), 'rb') as f:
+            while True:
+                data = await f.read(65536)
+                if not data:
+                    break
+                yield data
+    
+    return StreamingResponse(
+        stream_file(),
+        media_type=content_type,
+        headers={
+            "Content-Length": str(file_size),
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=3600",
+        }
+    )
 
 # ==================== UTILS ====================
 def new_id():
