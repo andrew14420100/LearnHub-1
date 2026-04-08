@@ -406,7 +406,7 @@ GET    /api/documents/view/:lessonId              Proxy documenti inline
 ## Struttura Progetto
 
 ```
-/app
+/
 ├── app/
 │   ├── api/
 │   │   └── [[...path]]/
@@ -417,36 +417,69 @@ GET    /api/documents/view/:lessonId              Proxy documenti inline
 │
 ├── components/
 │   ├── ui/                           # Componenti Shadcn/UI
-│   │   ├── button.jsx
-│   │   ├── card.jsx
-│   │   ├── dialog.jsx
-│   │   ├── input.jsx
-│   │   ├── select.jsx
-│   │   ├── tabs.jsx
-│   │   ├── badge.jsx
+│   │   ├── accordion.jsx
+│   │   ├── alert-dialog.jsx
 │   │   ├── avatar.jsx
+│   │   ├── badge.jsx
+│   │   ├── button.jsx
+│   │   ├── calendar.jsx
+│   │   ├── card.jsx
+│   │   ├── carousel.jsx
+│   │   ├── chart.jsx
+│   │   ├── checkbox.jsx
+│   │   ├── command.jsx
+│   │   ├── dialog.jsx
+│   │   ├── drawer.jsx
+│   │   ├── dropdown-menu.jsx
+│   │   ├── form.jsx
+│   │   ├── input.jsx
+│   │   ├── label.jsx
+│   │   ├── popover.jsx
 │   │   ├── progress.jsx
+│   │   ├── scroll-area.jsx
+│   │   ├── select.jsx
+│   │   ├── separator.jsx
+│   │   ├── sheet.jsx
+│   │   ├── skeleton.jsx
+│   │   ├── slider.jsx
+│   │   ├── sonner.jsx
+│   │   ├── switch.jsx
+│   │   ├── table.jsx
+│   │   ├── tabs.jsx
+│   │   ├── textarea.jsx
+│   │   ├── toast.jsx
+│   │   ├── toaster.jsx
+│   │   ├── toggle.jsx
+│   │   ├── tooltip.jsx
 │   │   └── ...
-│   ├── InstructorComponents.jsx      # Componenti area insegnante
-│   └── CompleteCourseEditor.jsx      # Editor completo corsi
+│   ├── CompleteCourseEditor.jsx      # Editor completo corsi (insegnante)
+│   └── InstructorComponents.jsx      # Componenti area insegnante
 │
 ├── lib/
-│   ├── mongodb.js                    # Connessione MongoDB
-│   └── utils.js                      # Utility (cn, classnames)
+│   ├── mongodb.js                    # Connessione MongoDB (singleton cached)
+│   ├── backend-extensions.js         # Utility backend (PDF, Canvas, ZIP, durata)
+│   └── utils.js                      # Utility frontend (cn, classnames)
+│
+├── hooks/
+│   ├── use-toast.js                  # Hook notifiche toast
+│   └── use-mobile.jsx                # Hook responsive
 │
 ├── public/
 │   └── uploads/                      # File caricati (fallback locale)
-│       ├── images/
-│       ├── videos/
-│       ├── pdfs/
+│       ├── images/                   # Immagini e avatar
+│       ├── videos/                   # Video lezioni
+│       ├── pdfs/                     # Documenti PDF
 │       ├── covers/                   # Copertine generate/caricate
 │       └── certificates/             # Attestati PDF generati
 │
-├── package.json                      # Dipendenze
-├── tailwind.config.js                # Config Tailwind
+├── package.json                      # Dipendenze (yarn install)
+├── next.config.js                    # Config Next.js (standalone, CORS, headers)
+├── tailwind.config.js                # Config Tailwind + Shadcn/UI theme
 ├── postcss.config.js                 # Config PostCSS
-├── next.config.js                    # Config Next.js
-├── .env.example                      # Template variabili ambiente
+├── jsconfig.json                     # Path aliases (@/*)
+├── components.json                   # Config Shadcn/UI
+├── .env                              # Variabili d'ambiente (NON committare)
+├── .env.example                      # Template variabili d'ambiente
 └── README.md                         # Questa documentazione
 ```
 
