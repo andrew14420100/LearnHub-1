@@ -1,11 +1,13 @@
 from fastapi import FastAPI, APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional, List
-import os, uuid, hashlib, hmac, base64, json, math, random, logging, time
+import os, uuid, hashlib, hmac, base64, json, math, random, logging, time, shutil, aiofiles
 from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).parent
@@ -17,6 +19,15 @@ db = client[os.environ['DB_NAME']]
 
 app = FastAPI(title="LearnHub API")
 r = APIRouter(prefix="/api")
+
+UPLOAD_DIR = ROOT_DIR / 'uploads'
+UPLOAD_DIR.mkdir(exist_ok=True)
+(UPLOAD_DIR / 'images').mkdir(exist_ok=True)
+(UPLOAD_DIR / 'videos').mkdir(exist_ok=True)
+(UPLOAD_DIR / 'pdfs').mkdir(exist_ok=True)
+(UPLOAD_DIR / 'certificates').mkdir(exist_ok=True)
+
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -1286,7 +1297,34 @@ async def instructor_upload(request: Request):
     user = await get_auth_user(request)
     if not user or user["role"] not in ("instructor", "admin"):
         raise HTTPException(403, "Non autenticato come insegnante")
-    return {"url": "", "filename": "placeholder", "size": 0, "type": "image", "message": "Upload locale non configurato. Usa Cloudinary."}
+    
+    form = await request.form()
+    file = form.get("file")
+    file_type = form.get("type", "image")
+    
+    if not file:
+        raise HTTPException(400, "Nessun file fornito")
+    
+    content = await file.read()
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
+    filename = f"{new_id()}{ext}"
+    
+    subdir = "images"
+    if file_type == "video": subdir = "videos"
+    elif file_type in ("pdf", "document"): subdir = "pdfs"
+    
+    file_path = UPLOAD_DIR / subdir / filename
+    async with aiofiles.open(str(file_path), 'wb') as f:
+        await f.write(content)
+    
+    # Get duration for videos (approximate from file size)
+    duration = 0
+    if file_type == "video":
+        # Rough estimate: ~1MB per 10 seconds at medium quality
+        duration = max(1, int(len(content) / (1024 * 1024) * 10))
+    
+    url = f"/api/uploads/{subdir}/{filename}"
+    return {"url": url, "filename": file.filename, "size": len(content), "type": file_type, "duration": duration}
 
 @r.post("/instructor/generate-cover")
 async def instructor_generate_cover(request: Request):
@@ -1373,7 +1411,22 @@ async def upload_file(request: Request):
     user = await get_auth_user(request)
     if not user:
         raise HTTPException(401, "Non autenticato")
-    return {"url": "", "message": "Upload non configurato in questa istanza"}
+    
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        raise HTTPException(400, "Nessun file fornito")
+    
+    content = await file.read()
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
+    filename = f"{new_id()}{ext}"
+    
+    file_path = UPLOAD_DIR / "images" / filename
+    async with aiofiles.open(str(file_path), 'wb') as f:
+        await f.write(content)
+    
+    url = f"/api/uploads/images/{filename}"
+    return {"url": url, "filename": file.filename, "size": len(content)}
 
 # ==================== HEALTH ====================
 @r.get("/")

@@ -13,6 +13,12 @@ import { Plus, Edit, Trash2, Upload, Save, Send, Video, FileText, File, BookOpen
 import { toast } from 'sonner';
 
 const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('lh_token') : null;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const resolveUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL}${url}`;
+};
 
 const api = async (endpoint, options = {}) => {
   const token = getToken();
@@ -126,7 +132,7 @@ export function CompleteCourseEditor({ initialCourse, onBack }) {
       formData.append('file', file);
       formData.append('type', 'image');
       
-      const res = await fetch('/api/instructor/upload', {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/instructor/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`
@@ -458,7 +464,7 @@ export function CompleteCourseEditor({ initialCourse, onBack }) {
             <CardContent className="space-y-4">
               {course.coverImage && (
                 <div className="rounded-lg overflow-hidden border">
-                  <img src={course.coverImage} alt="Copertina" className="w-full h-64 object-cover" />
+                  <img src={resolveUrl(course.coverImage)} alt="Copertina" className="w-full h-64 object-cover" />
                 </div>
               )}
               
@@ -653,7 +659,7 @@ function LessonDialog({ lesson, onSave, onClose }) {
       setUploadProgress(30);
       
       const token = typeof window !== 'undefined' ? localStorage.getItem('lh_token') : null;
-      const res = await fetch('/api/instructor/upload', {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/instructor/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -723,7 +729,7 @@ function LessonDialog({ lesson, onSave, onClose }) {
       formDataUpload.append('type', 'document');
       
       const token = typeof window !== 'undefined' ? localStorage.getItem('lh_token') : null;
-      const res = await fetch('/api/instructor/upload', {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/instructor/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -857,7 +863,7 @@ function LessonDialog({ lesson, onSave, onClose }) {
                 {formData.videoUrl && (
                   <div className="rounded-lg overflow-hidden bg-black">
                     <video 
-                      src={formData.videoUrl} 
+                      src={resolveUrl(formData.videoUrl)} 
                       controls 
                       className="w-full max-h-48"
                       onLoadedMetadata={(e) => {

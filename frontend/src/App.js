@@ -90,6 +90,11 @@ const LANG_NAMES = Object.fromEntries(ALL_LANGUAGES.map(l => [l.code, l.name]));
 
 // ==================== API ====================
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const resolveUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL}${url}`;
+};
 
 async function api(url, options = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('lh_token') : null;
@@ -872,7 +877,7 @@ function CourseDetailPage() {
                 </button>
               </div>
               <video 
-                src={previewVideo.videoUrl} 
+                src={resolveUrl(previewVideo.videoUrl)} 
                 controls 
                 autoPlay 
                 className="w-full aspect-video"
@@ -1562,7 +1567,7 @@ function LessonPage() {
               <div className="relative aspect-video">
                 <video
                   ref={videoRef}
-                  src={cur.videoUrl}
+                  src={resolveUrl(cur.videoUrl)}
                   className="w-full h-full"
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={handleVideoEnded}
@@ -2083,7 +2088,7 @@ function StudentDashboard() {
               <div key={e.id} className="bg-white rounded-sm border border-[#DEE2E6] overflow-hidden card-lift group">
                 <div className="relative h-36 bg-[#F1F3F5]">
                   {e.course?.coverImage ? (
-                    <img src={e.course.coverImage} alt={e.course.title} className="w-full h-full object-cover" />
+                    <img src={resolveUrl(e.course.coverImage)} alt={e.course.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-[#002FA7] to-[#0046FF] flex items-center justify-center">
                       <BookOpen size={32} className="text-white/30" />
@@ -2240,7 +2245,7 @@ function InstructorDashboard() {
             <div key={c.id} className="bg-white rounded-2xl border border-gray-100 p-5 card-lift">
               <div className="flex items-start gap-4">
                 {c.coverImage ? (
-                  <img src={c.coverImage} alt={c.title} className="w-32 h-20 object-cover rounded-xl shrink-0" />
+                  <img src={resolveUrl(c.coverImage)} alt={c.title} className="w-32 h-20 object-cover rounded-xl shrink-0" />
                 ) : (
                   <div className={`w-32 h-20 rounded-xl bg-gradient-to-br ${CAT_GRAD[c.category] || 'from-gray-400 to-gray-500'} shrink-0 flex items-center justify-center`}>
                     <BookOpen size={24} className="text-white/30" />
