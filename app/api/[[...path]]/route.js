@@ -4,19 +4,66 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir, readFile } from 'fs/promises';
 import path from 'path';
-import { createCanvas, loadImage } from 'canvas';
-import jsPDF from 'jspdf';
-import archiver from 'archiver';
 import { createWriteStream, createReadStream } from 'fs';
-import { v2 as cloudinary } from 'cloudinary';
 
-// ==================== CLOUDINARY CONFIG ====================
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
+// Dynamic imports for packages that may not work in serverless
+let cloudinary = null;
+let canvasModule = null;
+let jsPDF = null;
+let archiver = null;
+
+async function getCloudinary() {
+  if (!cloudinary) {
+    try {
+      const mod = await import('cloudinary');
+      cloudinary = mod.v2;
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+        secure: true
+      });
+    } catch (e) {
+      console.warn('Cloudinary not available:', e.message);
+    }
+  }
+  return cloudinary;
+}
+
+async function getCanvas() {
+  if (!canvasModule) {
+    try {
+      canvasModule = await import('canvas');
+    } catch (e) {
+      console.warn('Canvas not available:', e.message);
+    }
+  }
+  return canvasModule;
+}
+
+async function getJsPDF() {
+  if (!jsPDF) {
+    try {
+      const mod = await import('jspdf');
+      jsPDF = mod.default || mod.jsPDF;
+    } catch (e) {
+      console.warn('jsPDF not available:', e.message);
+    }
+  }
+  return jsPDF;
+}
+
+async function getArchiver() {
+  if (!archiver) {
+    try {
+      const mod = await import('archiver');
+      archiver = mod.default;
+    } catch (e) {
+      console.warn('Archiver not available:', e.message);
+    }
+  }
+  return archiver;
+}
 
 // ==================== DATABASE CONNECTION ====================
 let cachedClient = null;
@@ -1929,7 +1976,9 @@ async function handleInstructorUpload(request) {
       const folder = `learnhub/${type}s`;
       
       const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
+        const cl = await getCloudinary();
+        if (!cl) return err('Cloudinary non configurato', 500);
+        const uploadStream = cl.uploader.upload_stream(
           {
             resource_type: resourceType,
             folder: folder,
@@ -1989,7 +2038,9 @@ async function handleInstructorGenerateCover(request) {
     const width = 1200;
     const height = 675;
     
-    const canvas = createCanvas(width, height);
+    const cvs = await getCanvas();
+    if (!cvs) return err('Generazione copertina non disponibile su questa piattaforma', 400);
+    const canvas = cvs.createCanvas(width, height);
     const ctx = canvas.getContext('2d');
     
     // Gradients per categoria
@@ -2215,7 +2266,9 @@ async function handleStudentGetCertificate(request, courseId) {
   
   try {
     // Genera PDF
-    const doc = new jsPDF({
+    const JsPDFClass = await getJsPDF();
+    if (!JsPDFClass) return err('Generazione PDF non disponibile', 400);
+    const doc = new JsPDFClass({
       orientation: 'landscape',
       unit: 'mm',
       format: 'a4'
@@ -2365,8 +2418,10 @@ async function handleExportProject(request) {
     
     await mkdir(path.dirname(zipPath), { recursive: true });
     
+    const archiverModule = await getArchiver();
+    if (!archiverModule) return err('Export non disponibile', 400);
     const output = createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = archiverModule('zip', { zlib: { level: 9 } });
     
     await new Promise((resolve, reject) => {
       output.on('close', () => {
